@@ -1,0 +1,16 @@
+[package]
+name = "mrs-second"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bitflags = "2.6.0"
+byteorder = "1.5.0"
+futures = "0.3.30"
+serde = { version = "1.0.205", features = ["derive"] }
+serde_json = "1.0.122"
+thiserror = "1.0.63"
+tokio = { version = "1.39.2", features = ["full"] }
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+uuid = "1.10.0"
