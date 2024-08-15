@@ -1,5 +1,5 @@
 #[derive(Debug)]
-pub enum State {
+pub enum ConnectionState {
     Handshaking,
     Status,
     Login,
