@@ -1,23 +1,6 @@
+use std::io;
 use byteorder::ReadBytesExt;
-use std::{io, result};
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum VarLongError {
-    #[error("")]
-    Write(io::Error),
-
-    #[error("")]
-    Read(io::Error),
-
-    #[error("")]
-    Incomplete,
-
-    #[error("")]
-    TooLarge,
-}
-
-pub type Result<T> = result::Result<T, VarLongError>;
+use crate::types::var_long::{Result, VarLongError};
 
 #[cfg(all(
     any(target_arch = "x86", target_arch = "x86_64"),

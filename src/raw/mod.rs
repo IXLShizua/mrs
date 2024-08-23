@@ -1,4 +1,4 @@
-use crate::byte_vec::ByteVec;
+use crate::errors::EnumReprError;
 use crate::types::position::Position;
 use crate::types::{var_int, var_long};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -8,85 +8,34 @@ use std::{io, result};
 use thiserror::Error;
 use uuid::Uuid;
 
+mod byte_vec;
+mod ext;
+
+pub use byte_vec::*;
+pub use ext::*;
+
 #[derive(Debug, Error)]
 pub enum PacketError {
-    #[error("")]
+    #[error("The packet has an invalid ID")]
     WrongId,
 
-    #[error("")]
+    #[error("Error during interaction with IO")]
     Io(#[from] io::Error),
 
-    #[error("")]
+    #[error("Error while interacting with VarInt")]
     VarInt(#[from] var_int::VarIntError),
 
-    #[error("")]
+    #[error("Error while interacting with VarLong")]
     VarLong(#[from] var_long::VarLongError),
 
-    #[error("")]
+    #[error("Error while string decoding")]
     StringDecode(#[from] FromUtf8Error),
+
+    #[error("Error while interacting with enum")]
+    EnumRepr(#[from] EnumReprError),
 }
 
 pub type Result<T> = result::Result<T, PacketError>;
-
-pub trait TryIntoRawPacket: TryInto<RawPacket, Error = PacketError> {}
-impl<T> TryIntoRawPacket for T where T: TryInto<RawPacket, Error = PacketError> {}
-
-pub trait TryFromRawPacket: TryFrom<RawPacket, Error = PacketError> {}
-impl<T> TryFromRawPacket for T where T: TryFrom<RawPacket, Error = PacketError> {}
-
-pub trait PacketReadExt {
-    fn read_boolean(&mut self) -> Result<bool>;
-    fn read_byte(&mut self) -> Result<i8>;
-    fn read_unsigned_byte(&mut self) -> Result<u8>;
-    fn read_short(&mut self) -> Result<i16>;
-    fn read_unsigned_short(&mut self) -> Result<u16>;
-    fn read_int(&mut self) -> Result<i32>;
-    fn read_long(&mut self) -> Result<i64>;
-    fn read_float(&mut self) -> Result<f32>;
-    fn read_double(&mut self) -> Result<f64>;
-    fn read_string(&mut self) -> Result<String>;
-    fn read_text_component(&mut self);
-    fn read_json_text_component(&mut self);
-    fn read_identifier(&mut self) -> Result<()>;
-    fn read_var_int(&mut self) -> Result<i32>;
-    fn read_var_long(&mut self) -> Result<i64>;
-    fn read_entity_metadata(&mut self) -> Result<()>;
-    fn read_slot(&mut self) -> Result<()>;
-    fn read_nbt(&mut self) -> Result<()>;
-    fn read_position(&mut self) -> Result<Position>;
-    fn read_angle(&mut self) -> Result<()>;
-    fn read_uuid(&mut self) -> Result<Uuid>;
-    fn read_bitset(&mut self) -> Result<()>;
-    fn read_fixed_bitset(&mut self) -> Result<()>;
-    fn read_byte_array(&mut self) -> Result<Vec<u8>>;
-}
-
-pub trait PacketWriteExt {
-    fn write_boolean(&mut self, data: bool) -> Result<()>;
-    fn write_byte(&mut self, data: i8) -> Result<()>;
-    fn write_unsigned_byte(&mut self, data: u8) -> Result<()>;
-    fn write_short(&mut self, data: i16) -> Result<()>;
-    fn write_unsigned_short(&mut self, data: u16) -> Result<()>;
-    fn write_int(&mut self, data: i32) -> Result<()>;
-    fn write_long(&mut self, data: i64) -> Result<()>;
-    fn write_float(&mut self, data: f32) -> Result<()>;
-    fn write_double(&mut self, data: f64) -> Result<()>;
-    fn write_string(&mut self, data: &str) -> Result<()>;
-    fn write_text_component(&mut self) -> Result<()>;
-    fn write_json_text_component(&mut self) -> Result<()>;
-    fn write_identifier(&mut self) -> Result<()>;
-    fn write_var_int(&mut self, data: i32) -> Result<()>;
-    fn write_var_long(&mut self, data: i64) -> Result<()>;
-    fn write_entity_metadata(&mut self) -> Result<()>;
-    fn write_slot(&mut self) -> Result<()>;
-    fn write_nbt(&mut self) -> Result<()>;
-    fn write_position(&mut self, data: &Position) -> Result<()>;
-    fn write_angle(&mut self) -> Result<()>;
-    fn write_uuid(&mut self, data: &Uuid) -> Result<()>;
-    fn write_bitset(&mut self) -> Result<()>;
-    fn write_fixed_bitset(&mut self) -> Result<()>;
-    fn write_byte_array(&mut self, data: &[u8]) -> Result<()>;
-}
 
 #[derive(Debug)]
 pub struct RawPacket {
@@ -195,11 +144,11 @@ impl PacketReadExt for RawPacket {
     }
 
     fn read_var_int(&mut self) -> Result<i32> {
-        var_int::decode(&mut self.inner).map_err(PacketError::VarInt)
+        var_int::sync::decode(&mut self.inner).map_err(PacketError::VarInt)
     }
 
     fn read_var_long(&mut self) -> Result<i64> {
-        var_long::decode(&mut self.inner).map_err(PacketError::VarLong)
+        var_long::sync::decode(&mut self.inner).map_err(PacketError::VarLong)
     }
 
     fn read_entity_metadata(&mut self) -> Result<()> {
@@ -322,11 +271,11 @@ impl PacketWriteExt for RawPacket {
     }
 
     fn write_var_int(&mut self, data: i32) -> Result<()> {
-        var_int::encode(data, &mut self.inner).map_err(PacketError::VarInt)
+        var_int::sync::encode(data, &mut self.inner).map_err(PacketError::VarInt)
     }
 
     fn write_var_long(&mut self, data: i64) -> Result<()> {
-        var_long::encode(data, &mut self.inner).map_err(PacketError::VarLong)
+        var_long::sync::encode(data, &mut self.inner).map_err(PacketError::VarLong)
     }
 
     fn write_entity_metadata(&mut self) -> Result<()> {
@@ -373,6 +322,12 @@ impl PacketWriteExt for RawPacket {
     }
 }
 
+pub trait TryIntoRawPacket: TryInto<RawPacket, Error = PacketError> {}
+impl<T> TryIntoRawPacket for T where T: TryInto<RawPacket, Error = PacketError> {}
+
+pub trait TryFromRawPacket: TryFrom<RawPacket, Error = PacketError> {}
+impl<T> TryFromRawPacket for T where T: TryFrom<RawPacket, Error = PacketError> {}
+
 impl TryFrom<RawPacket> for Vec<u8> {
     type Error = PacketError;
 
@@ -380,8 +335,8 @@ impl TryFrom<RawPacket> for Vec<u8> {
         let mut bytes = ByteVec::new();
         let length = (value.id_len() + value.data_len()) as i32;
 
-        var_int::encode(length, &mut bytes).map_err(PacketError::VarInt)?;
-        var_int::encode(value.id, &mut bytes).map_err(PacketError::VarInt)?;
+        var_int::sync::encode(length, &mut bytes).map_err(PacketError::VarInt)?;
+        var_int::sync::encode(value.id, &mut bytes).map_err(PacketError::VarInt)?;
         bytes
             .write_all(value.inner.as_slice())
             .map_err(PacketError::Io)?;
@@ -396,8 +351,8 @@ impl TryFrom<Vec<u8>> for RawPacket {
     fn try_from(value: Vec<u8>) -> result::Result<Self, Self::Error> {
         let mut value = ByteVec::from(value);
 
-        let _length = var_int::decode(&mut value).map_err(PacketError::VarInt)?;
-        let id = var_int::decode(&mut value).map_err(PacketError::VarInt)?;
+        let _length = var_int::sync::decode(&mut value).map_err(PacketError::VarInt)?;
+        let id = var_int::sync::decode(&mut value).map_err(PacketError::VarInt)?;
 
         Ok(RawPacket::new_with_data(id, value.as_slice()))
     }

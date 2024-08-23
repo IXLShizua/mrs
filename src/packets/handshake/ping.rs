@@ -20,14 +20,16 @@ impl TryFrom<RawPacket> for PingRequestPacket {
 }
 
 #[derive(Debug)]
-pub struct PingResponsePacket;
+pub struct PingResponsePacket {
+    pub id: i64
+}
 
 impl TryFrom<PingResponsePacket> for RawPacket {
     type Error = PacketError;
 
     fn try_from(value: PingResponsePacket) -> Result<Self, Self::Error> {
         let mut raw = RawPacket::new(0x01);
-        raw.write_long(12345)?;
+        raw.write_long(value.id)?;
 
         Ok(raw)
     }

@@ -1,6 +1,8 @@
-use crate::enum_repr::EnumReprError;
+mod next_state;
+
 use crate::raw::{PacketError, PacketReadExt, RawPacket};
-use std::mem;
+
+pub use next_state::*;
 
 #[derive(Debug)]
 pub struct HandshakePacket {
@@ -8,25 +10,6 @@ pub struct HandshakePacket {
     pub server_addr: String,
     pub server_port: u16,
     pub next_state: HandshakeNextState,
-}
-
-#[repr(u32)]
-#[derive(Debug)]
-pub enum HandshakeNextState {
-    Status,
-    Login,
-}
-
-impl TryFrom<i32> for HandshakeNextState {
-    type Error = EnumReprError;
-
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        if value > 0 && value < 2 {
-            Ok(unsafe { mem::transmute(value) })
-        } else {
-            Err(EnumReprError::UnknownVariant)
-        }
-    }
 }
 
 impl TryFrom<RawPacket> for HandshakePacket {
@@ -42,7 +25,7 @@ impl TryFrom<RawPacket> for HandshakePacket {
             protocol_version,
             server_addr,
             server_port,
-            next_state,
+            next_state: HandshakeNextState::try_from(next_state)?,
         })
     }
 }

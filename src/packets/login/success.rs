@@ -1,12 +1,12 @@
-use uuid::Uuid;
 use crate::raw::{PacketError, PacketWriteExt, RawPacket};
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct LoginSuccessPacket {
     pub uuid: Uuid,
     pub username: String,
     pub properties: Vec<Property>,
-    pub strict_error_handling: bool
+    pub strict_error_handling: bool,
 }
 
 #[derive(Debug)]
@@ -29,9 +29,9 @@ impl TryFrom<LoginSuccessPacket> for RawPacket {
             raw.write_string(&property.value)?;
             raw.write_boolean(false)?;
         }
-        
+
         raw.write_boolean(value.strict_error_handling)?;
-        
+
         Ok(raw)
     }
 }
